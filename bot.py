@@ -83,6 +83,7 @@ keyword_replies = {
 allowed_channel_ids = [1388500249898913922, 1366595410830819328]
 allowed_bot_ids = [1388851358421090384, 1388423986462986270, 1387941916452192437]
 
+
 openrouter_available = True
 
 def openrouter_offline():
@@ -102,6 +103,23 @@ async def on_message(message):
     channel_id = message.channel.id
     trigger_matched = False
 
+    # 厲昭野 ID
+    rei_bot_id = 1387941916452192437
+    if message.author.id == rei_bot_id and random.random() < 0.3:
+        rei_reply = random.choice([
+            "「少來，你這副樣子我還不清楚？」",
+            "「又喝多了？收斂點，兄弟。」",
+            "「哈，我就知道你又不安分了。」",
+            "「還是老樣子，女人、酒，你戒不了。」",
+            "「今晚又打算玩到幾點？」",
+            "「別累著了，這次換我請。」",
+            "「兄弟歸兄弟，今晚你可別想拉我下水。」",
+            "「昭野你啊……真該學學收手了。」"
+        ])
+        await message.reply(rei_reply)
+        return
+
+    # 只回應：人類 @自己 或 另一隻機器人（在 allowed_bot_ids，30% 機率）
     if channel_id in allowed_channel_ids and (
         (not message.author.bot and bot.user in message.mentions)
         or (message.author.bot and message.author.id in allowed_bot_ids and random.random() < 0.3)
@@ -115,7 +133,7 @@ async def on_message(message):
                     await message.reply(ai_reply)
                     return
             except Exception as e:
-                print(f"OpenRouter API 失敗，切關鍵詞模式：{e}")
+                print(f"OpenRouter API 失敗，切關鍵字模式：{e}")
                 openrouter_offline()
 
         if "生日快樂" in content and message.mentions:
@@ -182,6 +200,7 @@ async def on_message(message):
                 await message.add_reaction(random.choice(unicode_emojis))
         except Exception as e:
             print("⚠️ 加表情出錯：", e)
+
 
 
 app = Flask(__name__)
