@@ -102,7 +102,6 @@ async def on_message(message):
     channel_id = message.channel.id
     trigger_matched = False
 
-    # 只回應：人類 @自己 或 另一隻機器人（在 allowed_bot_ids，30% 機率）
     if channel_id in allowed_channel_ids and (
         (not message.author.bot and bot.user in message.mentions)
         or (message.author.bot and message.author.id in allowed_bot_ids and random.random() < 0.3)
@@ -116,7 +115,7 @@ async def on_message(message):
                     await message.reply(ai_reply)
                     return
             except Exception as e:
-                print(f"OpenRouter API 失敗，切關鍵字模式：{e}")
+                print(f"OpenRouter API 失敗，切關鍵詞模式：{e}")
                 openrouter_offline()
 
         if "生日快樂" in content and message.mentions:
@@ -183,3 +182,18 @@ async def on_message(message):
                 await message.add_reaction(random.choice(unicode_emojis))
         except Exception as e:
             print("⚠️ 加表情出錯：", e)
+
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Bot is alive."
+
+def run_web():
+    app.run(host="0.0.0.0", port=8080)
+
+Thread(target=run_web).start()
+
+bot.run(discord_token)
+
