@@ -95,7 +95,7 @@ def is_brother(author_id):
     return author_id in allowed_bot_ids
 
 def wrap_as_brother(text):
-    return f"昭野你啊……真該學學收手了……{text}"
+    return f"昭野你這樣說……{text}"
 
 @bot.event
 async def on_message(message):
@@ -136,7 +136,7 @@ async def on_message(message):
         await message.reply(rei_reply)
         return
 
-    # ========== API 回覆 ==========
+    # ========== API 回覆 ==========  
     if channel_id in allowed_channel_ids and (
         (not message.author.bot and bot.user in message.mentions)
         or (message.author.bot and message.author.id in allowed_bot_ids and random.random() < 0.3)
@@ -154,69 +154,6 @@ async def on_message(message):
             except Exception as e:
                 print(f"OpenRouter API 失敗，切關鍵詞模式：{e}")
                 openrouter_offline()
-
-        if "生日快樂" in content and message.mentions:
-            mention_name = message.mentions[0].mention
-            birthday_intros = [
-                f"{mention_name} 今天是你生日啊？嗯……要我陪你慶祝嗎？",
-                f"{mention_name}，偷偷準備了什麼要我發現嗎？生日可是很重要的事喔。",
-                f"咦，{mention_name} 今天生日？你這麼乖，那我是不是該親自說聲生日快樂？",
-                f"「{mention_name}……生日？你等著，我準備一下給你驚喜。」",
-            ]
-            birthday_lines = [
-                f"「生日快樂喔，{mention_name}。」",
-                f"「偷偷許願的話，記得把我也放進去。」",
-                f"「下次生日……還要我陪你過嗎？」",
-            ]
-            await message.channel.send(random.choice(birthday_intros))
-            await asyncio.sleep(1)
-            await message.channel.send(random.choice(birthday_lines))
-            await asyncio.sleep(1)
-            await message.channel.send(
-                f"「Happy birthday to you...」\n"
-                f"「Happy birthday to you...」\n"
-                f"「Happy birthday dear {mention_name}...」\n"
-                f"「Happy birthday to you～」"
-            )
-            return
-
-        if "禮物呢" in content:
-            gift_lines = [
-                "「禮物？嗯……你要我親自挑的，還是要我親自拆的？」",
-                "「想要禮物的話，得先告訴我你想被我怎麼寵。」",
-                "「今天沒準備禮物，不過我陪你，算不算最好的了？」",
-                "「問我禮物？我這不是好好站在你面前，還笑得這麼好看嗎。」",
-            ]
-            await message.channel.send(random.choice(gift_lines))
-            return
-
-        for keyword, reply_list in keyword_replies.items():
-            if keyword in content:
-                await message.reply(random.choice(reply_list))
-                trigger_matched = True
-                break
-
-        if not trigger_matched and random.random() < 0.3:
-            reply = random.choice(random_responses)
-            await message.reply(reply)
-
-    if random.random() < 0.4:
-        try:
-            custom_emoji_ids = [
-                1379834814642782208
-            ]
-            unicode_emojis = ["😏", "🔥", "😎", "🤔", "😘", "🙄", "💋", "❤️"]
-
-            if random.random() < 0.4:
-                emoji = bot.get_emoji(random.choice(custom_emoji_ids))
-                if emoji:
-                    await message.add_reaction(emoji)
-            else:
-                await message.add_reaction(random.choice(unicode_emojis))
-        except Exception as e:
-            print("⚠️ 加表情出錯：", e)
-
-
 
 app = Flask(__name__)
 
