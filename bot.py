@@ -157,9 +157,10 @@ async def on_message(message):
     # ===== 分 BOT / 玩家關係，呼叫 API =====
     is_brother_relation = message.author.bot and message.author.id in allowed_bot_ids
     is_lover_relation = not message.author.bot
+    mentioned_me = any(user.id == bot.user.id for user in message.mentions)
 
     if channel_id in allowed_channel_ids and (
-        (is_lover_relation and bot.user in message.mentions)
+        (is_lover_relation and mentioned_me)
         or (is_brother_relation and random.random() < 0.3)
     ):
         if openrouter_available:
@@ -175,6 +176,7 @@ async def on_message(message):
             except Exception as e:
                 print(f"OpenRouter API 失敗，切關鍵詞模式：{e}")
                 openrouter_offline()
+
 
 app = Flask(__name__)
 
