@@ -83,19 +83,37 @@ keyword_replies = {
 allowed_channel_ids = [1388500249898913922, 1366595410830819328]
 allowed_bot_ids = [1388851358421090384, 1388423986462986270, 1387941916452192437]
 
+def get_ai_reply(message_content, is_brother=False):
+    if is_brother:
+        prompt = (
+            "你和對方是互相縱容的兄弟，語氣隨性放蕩、不帶曖昧、不帶撩人、也不正經，"
+            "可以嘴砲、拱對方鬧事，聊天自然。不要戀愛語氣。"
+        )
+    else:
+        prompt = (
+            "你和對方是曖昧戀人，說話帶撒嬌、撩人的語氣，帶點挑逗、暗示意味，可以稍微輕浮或調情。"
+        )
+    response = call_openrouter_api(message_content, prompt)
+    return response
+
+
 openrouter_available = True
 last_replied_bot_id = None  # 防止 BOT → BOT 無限互噴
+
 
 def openrouter_offline():
     global openrouter_available
     openrouter_available = False
     print("[INFO] OpenRouter 額度用完，切關鍵字模式")
 
+
 def is_brother(author_id):
     return author_id in allowed_bot_ids
 
+
 def wrap_as_brother(text):
     return f"昭野你這樣說……{text}"
+
 
 @bot.event
 async def on_message(message):
@@ -136,18 +154,21 @@ async def on_message(message):
         await message.reply(rei_reply)
         return
 
-    # ========== API 回覆 ==========  
+    # ===== 分 BOT / 玩家關係，呼叫 API =====
+    is_brother_relation = message.author.bot and message.author.id in allowed_bot_ids
+    is_lover_relation = not message.author.bot
+
     if channel_id in allowed_channel_ids and (
-        (not message.author.bot and bot.user in message.mentions)
-        or (message.author.bot and message.author.id in allowed_bot_ids and random.random() < 0.3)
+        (is_lover_relation and bot.user in message.mentions)
+        or (is_brother_relation and random.random() < 0.3)
     ):
         if openrouter_available:
             try:
-                ai_reply = get_ai_reply(content)
+                ai_reply = get_ai_reply(content, is_brother=is_brother_relation)
                 if ai_reply == "OPENROUTER_QUOTA_EXCEEDED":
                     openrouter_offline()
                 elif ai_reply:
-                    if is_brother(message.author.id):
+                    if is_brother_relation:
                         ai_reply = wrap_as_brother(ai_reply)
                     await message.reply(ai_reply)
                     return
