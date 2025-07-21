@@ -90,6 +90,12 @@ def openrouter_offline():
     openrouter_available = False
     print("[INFO] OpenRouter 額度用完，切關鍵字模式")
 
+def is_brother(author_id):
+    return author_id in allowed_bot_ids
+
+def wrap_as_brother(text):
+    return f"昭野你啊……真該學學收手了……{text}"
+
 @bot.event
 async def on_message(message):
     global openrouter_available
@@ -104,7 +110,7 @@ async def on_message(message):
 
     # 厲昭野 ID
     rei_bot_id = 1387941916452192437
-    if message.author.id == rei_bot_id and random.random() < 0.3:
+    if message.author.id == rei_bot_id and random.random() < 0.1:
         rei_reply = random.choice([
             "「少來，你這副樣子我還不清楚？」",
             "「又喝多了？收斂點，昭野。」",
@@ -118,7 +124,6 @@ async def on_message(message):
         await message.reply(rei_reply)
         return
 
-    # 只回應：人類 @自己 或 另一隻機器人（在 allowed_bot_ids，30% 機率）
     if channel_id in allowed_channel_ids and (
         (not message.author.bot and bot.user in message.mentions)
         or (message.author.bot and message.author.id in allowed_bot_ids and random.random() < 0.3)
@@ -129,6 +134,8 @@ async def on_message(message):
                 if ai_reply == "OPENROUTER_QUOTA_EXCEEDED":
                     openrouter_offline()
                 elif ai_reply:
+                    if is_brother(message.author.id):
+                        ai_reply = wrap_as_brother(ai_reply)
                     await message.reply(ai_reply)
                     return
             except Exception as e:
