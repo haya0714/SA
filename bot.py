@@ -84,6 +84,7 @@ allowed_channel_ids = [1388500249898913922, 1366595410830819328]
 allowed_bot_ids = [1388851358421090384, 1388423986462986270, 1387941916452192437]
 
 openrouter_available = True
+last_replied_bot_id = None  # 防止 BOT → BOT 無限互噴
 
 def openrouter_offline():
     global openrouter_available
@@ -99,8 +100,13 @@ def wrap_as_brother(text):
 @bot.event
 async def on_message(message):
     global openrouter_available
+    global last_replied_bot_id
 
     if message.author == bot.user:
+        return
+
+    # 防止剛剛才回過同一隻 BOT，又觸發
+    if message.author.bot and message.author.id == last_replied_bot_id:
         return
 
     await bot.process_commands(message)
@@ -108,7 +114,13 @@ async def on_message(message):
     channel_id = message.channel.id
     trigger_matched = False
 
-    # 厲昭野 ID
+    # ===== 更新 BOT 被回覆狀態 =====
+    if message.author.bot and message.author.id in allowed_bot_ids:
+        last_replied_bot_id = message.author.id
+    else:
+        last_replied_bot_id = None
+
+    # 厲昭野 ID 特殊台詞
     rei_bot_id = 1387941916452192437
     if message.author.id == rei_bot_id and random.random() < 0.1:
         rei_reply = random.choice([
@@ -124,6 +136,7 @@ async def on_message(message):
         await message.reply(rei_reply)
         return
 
+    # ========== API 回覆 ==========
     if channel_id in allowed_channel_ids and (
         (not message.author.bot and bot.user in message.mentions)
         or (message.author.bot and message.author.id in allowed_bot_ids and random.random() < 0.3)
@@ -202,6 +215,7 @@ async def on_message(message):
                 await message.add_reaction(random.choice(unicode_emojis))
         except Exception as e:
             print("⚠️ 加表情出錯：", e)
+
 
 
 app = Flask(__name__)
