@@ -1,4 +1,8 @@
-from utils import get_ai_reply
+# coding: utf-8
+
+# ---【修改】從 utils 匯入函式和我們定義好的 Prompt 變數 ---
+from utils import get_ai_reply, lover_system_prompt, brother_system_prompt
+
 import discord
 from discord.ext import commands
 import os
@@ -18,8 +22,12 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ---【新增】Bot 關係設定 (請在此填入厲昭野的 User ID) ---
+# 這將作為判斷兄弟 Bot 的依據
+brother_bot_id = 1387941916452192437 # 您原本設定的 rei_bot_id
 
 # ─── 隨機回覆語錄（無觸發詞情況下） ───────
+# (保留您原本的台詞)
 random_responses = [
     "「欸，你是不是又在偷偷看我？」",
     "「怎麼了？盯著我發什麼呆。」",
@@ -34,8 +42,8 @@ random_responses = [
     "「想不想知道我現在在想什麼……嗯，跟你有關。」",
 ]
 
-
-# ─── 關鍵字回覆字典 ────────────────────
+# ─── 關鍵字回覆字典（對玩家）───────────
+# (保留您原本的台詞)
 keyword_replies = {
     "安安": [
         "「欸，怎麼突然這麼乖叫我？」",
@@ -81,89 +89,93 @@ keyword_replies = {
     "你哪天帶我回家": ["「嗯……那今天怎麼樣？還是你想要讓我多等一天，好讓你看我更主動一點？」"]
 }
 
+# ---【新增】對兄弟 Bot 的關鍵字回覆 ---
+# (將您原本的特殊台詞整合至此，方便管理)
+brother_keyword_replies = {
+    # 您可以設定關鍵字，例如 "昭野"，或讓它在沒有關鍵字時隨機回覆
+    "_random_": [
+        "「少來，你這副樣子我還不清楚？」",
+        "「又喝多了？收斂點，昭野。」",
+        "「哈，我就知道你又不安分了。」",
+        "「還是老樣子，女人、酒，你戒不了。」",
+        "「今晚又打算玩到幾點？」",
+        "「這次換我請。」",
+        "「兄弟歸兄弟，今晚你可別想拉我下水。」",
+        "「昭野你啊……真該學學收手了。」"
+    ]
+}
 
+
+# ─── Bot 設定 ───────────────────────
 allowed_channel_ids = [1388500249898913922, 1366595410830819328]
-allowed_bot_ids = [1388851358421090384, 1388423986462986270, 1387941916452192437]
+# 將兄弟 Bot 的 ID 也加入此列表
+allowed_bot_ids = [1388851358421090384, 1388423986462986270, 1387941916452192437brother_bot_id]
 
 openrouter_available = True
-last_replied_bot_id = None  # 防止 BOT → BOT 無限互噴
 
 def openrouter_offline():
     global openrouter_available
     openrouter_available = False
-    print("[INFO] OpenRouter 額度用完，切關鍵字模式")
+    print("[INFO] OpenRouter 額度用完，已切換至關鍵字模式")
 
-def get_ai_reply(message_content, is_brother=False):
-    if is_brother:
-        prompt = (
-            "你和對方是互相縱容的兄弟，語氣隨性放蕩、不帶曖昧、不帶撩人、也不正經，"
-            "可以嘴砲、拱對方鬧事，聊天自然。不要戀愛語氣。"
-        )
-    else:
-        prompt = (
-            "你和對方是曖昧戀人，說話帶撒嬌、撩人的語氣，帶點挑逗、暗示意味，可以稍微輕浮或調情。"
-        )
-    response = call_openrouter_api(message_content, prompt)
-    return response
+@bot.event
+async def on_ready():
+    print(f"{bot.user} (季時安) 已上線！")
+    print(f"監聽頻道：{[bot.get_channel(c).name for c in allowed_channel_ids if bot.get_channel(c)]}")
 
 @bot.event
 async def on_message(message):
     global openrouter_available
-    global last_replied_bot_id
 
     if message.author == bot.user:
         return
 
-    # 防止剛剛才回過同一隻 BOT，又觸發
-    if message.author.bot and message.author.id == last_replied_bot_id:
+    # 【優化】防止連鎖反應：如果這則訊息是在回覆我們 Bot 自己，就忽略它
+    if message.reference and message.reference.resolved and message.reference.resolved.author == bot.user:
+        return
+    
+    if message.channel.id not in allowed_channel_ids:
+        return
+    
+    await bot.process_commands(message)
+
+    content = message.content
+    author = message.author
+    
+    # --- 判斷觸發條件 ---
+    is_from_player = not author.bot and bot.user in message.mentions
+    is_from_brother = author.id == brother_bot_id and random.random() < 0.3
+
+    if not (is_from_player or is_from_brother):
         return
 
-    await bot.process_commands(message)
-    content = message.content
-    channel_id = message.channel.id
+    # --- API 優先回覆模式 ---
+    if openrouter_available:
+        try:
+            ai_reply = None
+            if is_from_player:
+                ai_reply = get_ai_reply(content, system_prompt=lover_system_prompt)
+            elif is_from_brother:
+                ai_reply = get_ai_reply(content, system_prompt=brother_system_prompt)
+
+            if ai_reply == "OPENROUTER_QUOTA_EXCEEDED":
+                openrouter_offline()
+                ai_reply = None 
+            elif ai_reply:
+                await message.reply(ai_reply)
+                return
+
+        except Exception as e:
+            print(f"OpenRouter API 失敗，切換至關鍵字模式：{e}")
+            traceback.print_exc()
+            openrouter_offline()
+
+    # --- 關鍵字回覆模式 (API 失效或額度用完時的備案) ---
     trigger_matched = False
 
-    # ===== 更新 BOT 被回覆狀態 =====
-    if message.author.bot and message.author.id in allowed_bot_ids:
-        last_replied_bot_id = message.author.id
-    else:
-        last_replied_bot_id = None
-
-    # 厲昭野 ID 特殊台詞
-    rei_bot_id = 1387941916452192437
-    if message.author.id == rei_bot_id and random.random() < 0.1:
-        rei_reply = random.choice([
-            "「少來，你這副樣子我還不清楚？」",
-            "「又喝多了？收斂點，昭野。」",
-            "「哈，我就知道你又不安分了。」",
-            "「還是老樣子，女人、酒，你戒不了。」",
-            "「今晚又打算玩到幾點？」",
-            "「這次換我請。」",
-            "「兄弟歸兄弟，今晚你可別想拉我下水。」",
-            "「昭野你啊……真該學學收手了。」"
-        ])
-        await message.reply(rei_reply)
-        return
-
-    # ========== API 回覆 ==========
-    if channel_id in allowed_channel_ids and (
-        (not message.author.bot and bot.user in message.mentions)
-        or (message.author.bot and message.author.id in allowed_bot_ids and random.random() < 0.3)
-    ):
-        if openrouter_available:
-            try:
-                ai_reply = get_ai_reply(content)
-                if ai_reply == "OPENROUTER_QUOTA_EXCEEDED":
-                    openrouter_offline()
-                elif ai_reply:
-                    if is_brother(message.author.id):
-                        ai_reply = wrap_as_brother(ai_reply)
-                    await message.reply(ai_reply)
-                    return
-            except Exception as e:
-                print(f"OpenRouter API 失敗，切關鍵詞模式：{e}")
-                openrouter_offline()
-
+    # --- 玩家互動邏輯 ---
+    if is_from_player:
+        # 生日快樂模組 (保留您原本的台詞)
         if "生日快樂" in content and message.mentions:
             mention_name = message.mentions[0].mention
             birthday_intros = [
@@ -188,7 +200,8 @@ async def on_message(message):
                 f"「Happy birthday to you～」"
             )
             return
-
+        
+        # 討禮物模組 (保留您原本的台詞)
         if "禮物呢" in content:
             gift_lines = [
                 "「禮物？嗯……你要我親自挑的，還是要我親自拆的？」",
@@ -199,20 +212,35 @@ async def on_message(message):
             await message.channel.send(random.choice(gift_lines))
             return
 
+        # 玩家關鍵字回覆
         for keyword, reply_list in keyword_replies.items():
             if keyword in content:
                 await message.reply(random.choice(reply_list))
                 trigger_matched = True
                 break
-
+        
+        # 如果完全沒有觸發任何關鍵字，機率性隨機回覆
         if not trigger_matched and random.random() < 0.3:
             reply = random.choice(random_responses)
             await message.reply(reply)
 
+    # --- 兄弟 Bot 互動邏輯 (關鍵字 fallback) ---
+    elif is_from_brother:
+        # 在這裡，您可以設定如果厲昭野說了什麼特定關鍵字，季時安要怎麼回覆
+        # for keyword, reply_list in brother_keyword_replies.items():
+        #     if keyword in content:
+        #         await message.reply(random.choice(reply_list))
+        #         trigger_matched = True
+        #         break
+        # 如果沒有特定關鍵字，就從 "_random_" 中隨機選一個回覆
+        if not trigger_matched and "_random_" in brother_keyword_replies:
+            await message.reply(random.choice(brother_keyword_replies["_random_"]))
+    
+    # --- 表情符號反應 ---
     if random.random() < 0.4:
         try:
             custom_emoji_ids = [
-                1379834814642782208
+                1379834814642782208 # 保留您的新 Emoji ID
             ]
             unicode_emojis = ["😏", "🔥", "😎", "🤔", "😘", "🙄", "💋", "❤️"]
 
@@ -226,6 +254,7 @@ async def on_message(message):
             print("⚠️ 加表情出錯：", e)
 
 
+# ─── Flask Web Server (保持不變) ──────────
 app = Flask(__name__)
 
 @app.route("/")
@@ -235,7 +264,7 @@ def home():
 def run_web():
     app.run(host="0.0.0.0", port=8080)
 
-Thread(target=run_web).start()
-
-bot.run(discord_token)
-
+# ─── 啟動 Bot (保持不變) ─────────────────
+if __name__ == "__main__":
+    Thread(target=run_web).start()
+    bot.run(discord_token)
