@@ -75,7 +75,7 @@ def get_ai_reply(user_input, system_prompt):
 
         payload = {
             # 推薦使用 Llama 3 來扮演這種細膩、心機的角色，效果會很好
-            "model": "qwen/qwq-32b:free",
+            "model": "qwen/qwen3-4b:free",
             "messages": messages
         }
 
